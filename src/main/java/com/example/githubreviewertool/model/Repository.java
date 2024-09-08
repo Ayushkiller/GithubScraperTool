@@ -2,6 +2,7 @@ package com.example.githubreviewertool.model;
 
 import java.util.List;
 import java.sql.Date;
+
 public class Repository {
     private String name;
     private String description;
@@ -19,25 +20,23 @@ public class Repository {
     private int folderDepth;
     private int watchers;
     private List<String> frameworks;
-
-    // Updated constructor
     public Repository(String name, String description, String language, int stars, int forks, int openIssues,
-                      java.util.Date date, java.util.Date date2, int commitCount, int contributorCount, int fileCount,
-                      int linesOfCode, int cyclomaticComplexity) {
-        this.name = name;
-        this.description = description;
-        this.language = language;
-        this.stars = stars;
-        this.forks = forks;
-        this.openIssues = openIssues;
-        this.createdAt = (Date) date;
-        this.updatedAt = (Date) date2;
-        this.commitCount = commitCount;
-        this.contributorCount = contributorCount;
-        this.fileCount = fileCount;
-        this.linesOfCode = linesOfCode;
-        this.cyclomaticComplexity = cyclomaticComplexity;
-    }
+    java.sql.Date createdAt, java.sql.Date updatedAt, int commitCount, int contributorCount, int fileCount,
+    int linesOfCode, int folderDepth) {
+this.name = name;
+this.description = description;
+this.language = language;
+this.stars = stars;
+this.forks = forks;
+this.openIssues = openIssues;
+this.createdAt = createdAt;
+this.updatedAt = updatedAt;
+this.commitCount = commitCount;
+this.contributorCount = contributorCount;
+this.fileCount = fileCount;
+this.linesOfCode = linesOfCode;
+this.folderDepth = folderDepth;
+}
 
     // Getters and Setters for the new fields
     public String getName() {

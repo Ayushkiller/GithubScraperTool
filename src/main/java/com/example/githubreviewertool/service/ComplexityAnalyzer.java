@@ -15,7 +15,7 @@ public class ComplexityAnalyzer {
                 .orElse(null);
     }
 
-    private int calculateComplexityScore(Repository repo) {
+    public int calculateComplexityScore(Repository repo) {
         int score = 0;
     
         // Lines of Code (LOC)

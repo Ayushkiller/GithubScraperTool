@@ -5,187 +5,140 @@ import com.example.githubreviewertool.model.Repository;
 import org.kohsuke.github.GHRepository;
 import org.kohsuke.github.GHUser;
 import org.kohsuke.github.GitHub;
-import org.kohsuke.github.GitHubBuilder;
-import org.springframework.beans.factory.annotation.Value;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Pattern;
+import java.util.stream.Stream;
 
 @Service
 public class GitHubService {
-
-    @Value("${github.token}")
-    private String githubToken;
+    private static final Logger logger = LoggerFactory.getLogger(GitHubService.class);
+    @Autowired
+    private GitHub github;
 
     public AnalysisResult analyzeProfile(String username) throws IOException {
-        GitHub github = new GitHubBuilder()
-                .withOAuthToken(githubToken)
-                .build();
         GHUser user = github.getUser(username);
         List<GHRepository> repos = user.listRepositories().toList();
 
         List<Repository> analyzedRepos = new ArrayList<>();
-        Repository mostComplex = null;
-        double maxComplexity = 0;
 
         for (GHRepository repo : repos) {
             Repository analyzedRepo = analyzeRepository(repo);
             analyzedRepos.add(analyzedRepo);
-
-            double complexity = calculateComplexity(analyzedRepo, repo);
-            if (complexity > maxComplexity) {
-                maxComplexity = complexity;
-                mostComplex = analyzedRepo;
-            }
         }
 
-        double complexityScore = calculateComplexity(mostComplex, null);
-
-        return new AnalysisResult(username, analyzedRepos, mostComplex, complexityScore);
+        return new AnalysisResult(username, analyzedRepos);
     }
 
     private Repository analyzeRepository(GHRepository repo) throws IOException {
-        // Clone the repository locally
         String cloneDir = "/tmp/github_repos/" + repo.getName();
         cloneRepository(repo.getHttpTransportUrl(), cloneDir);
 
-        int commitCount = repo.listCommits().asList().size();
-        int contributorCount = repo.listContributors().toList().size();
+        int linesOfCode = countLinesOfCode(cloneDir);
         int fileCount = countFiles(cloneDir);
-        int linesOfCode = countLinesOfCode(cloneDir); // Counts lines of code
-        int cyclomaticComplexity = analyzeCyclomaticComplexity(cloneDir); // Analyze cyclomatic complexity
+        int folderDepth = calculateFolderDepth(cloneDir);
 
         // Delete the cloned repository after processing
         deleteDirectory(new File(cloneDir));
 
         return new Repository(
-            repo.getName(),
-            repo.getDescription(),
-            repo.getLanguage(),
-            repo.getStargazersCount(),
-            repo.getForksCount(),
-            repo.getOpenIssueCount(),
-            repo.getCreatedAt(),
-            repo.getUpdatedAt(),
-            commitCount,
-            contributorCount,
-            fileCount,
-            linesOfCode,
-            cyclomaticComplexity
-        );
+                repo.getName(),
+                repo.getDescription(),
+                repo.getLanguage(),
+                repo.getStargazersCount(),
+                repo.getForksCount(),
+                repo.getOpenIssueCount(),
+                repo.getCreatedAt(),
+                repo.getUpdatedAt(),
+                repo.listCommits().toList().size(),
+                repo.listContributors().toList().size(),
+                fileCount,
+                linesOfCode,
+                folderDepth);
     }
 
-    /**
-     * Clone the repository locally for analysis
-     */
     private void cloneRepository(String repoUrl, String cloneDir) throws IOException {
-        File cloneDirFile = new File(cloneDir);
-        if (!cloneDirFile.getParentFile().exists()) {
-            cloneDirFile.getParentFile().mkdirs(); // Create parent directories if they do not exist
+        File dir = new File(cloneDir);
+        if (dir.exists()) {
+            deleteDirectory(dir);
         }
-    
-        ProcessBuilder pb = new ProcessBuilder("git", "clone", repoUrl, cloneDir);
-        pb.redirectErrorStream(true); // Combine error and output streams
-        Process process = pb.start();
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                System.out.println(line);
-            }
-        }
-    }
-    
-    /**
-     * Count files in the cloned repository
-     */
-    private int countFiles(String directoryPath) throws IOException {
-        return (int) Files.walk(Paths.get(directoryPath)).filter(Files::isRegularFile).count();
-    }
-
-    /**
-     * Count lines of code in the repository by analyzing relevant source files.
-     */
-    private int countLinesOfCode(String directoryPath) throws IOException {
-        return Files.walk(Paths.get(directoryPath))
-                .filter(Files::isRegularFile)
-                .filter(path -> path.toString().endsWith(".py") || path.toString().endsWith(".js") || path.toString().endsWith(".java"))
-                .mapToInt(this::countLinesInFile)
-                .sum();
-    }
-
-    /**
-     * Count the lines of code in an individual file.
-     */
-    private int countLinesInFile(java.nio.file.Path filePath) {
         try {
-            return (int) Files.lines(filePath).count();
+            org.eclipse.jgit.api.Git.cloneRepository()
+                    .setURI(repoUrl)
+                    .setDirectory(dir)
+                    .call();
+        } catch (Exception e) {
+            throw new IOException("Failed to clone repository", e);
+        }
+    }
+
+    private int countLinesOfCode(String directoryPath) throws IOException {
+        try (Stream<Path> walk = Files.walk(Paths.get(directoryPath))) {
+            return walk.filter(Files::isRegularFile)
+                    .mapToInt(this::countLinesInFile)
+                    .sum();
+        }
+    }
+
+    private int countLinesInFile(Path filePath) {
+        try {
+            try (InputStream inputStream = Files.newInputStream(filePath)) {
+                BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8));
+                return (int) reader.lines().count();
+            }
         } catch (IOException e) {
-            e.printStackTrace();
+            logger.warn("Error reading file: {}", filePath, e);
             return 0;
         }
     }
 
-    /**
-     * Analyze cyclomatic complexity of the repository using static analysis tools.
-     */
-    private int analyzeCyclomaticComplexity(String directoryPath) throws IOException {
-        int complexity = 0;
-        // Run ESLint for JavaScript files
-        complexity += runCyclomaticComplexityTool("eslint", "--max-warnings=0", "--ext", ".js", directoryPath);
-        
-        // Run PyLint for Python files
-        complexity += runCyclomaticComplexityTool("pylint", directoryPath);
-        
-        // Add logic for other languages if necessary
-        return complexity;
-    }
-    
-    /**
-     * Run a cyclomatic complexity tool (ESLint/PyLint) on the repository and return the calculated complexity.
-     */
-    private int runCyclomaticComplexityTool(String toolName, String... args) throws IOException {
-        // Prepare the command with the tool name and arguments
-        List<String> command = new ArrayList<>();
-        command.add("npm");
-        command.add("run");
-        command.add(toolName);
-        for (String arg : args) {
-            command.add(arg);
-        }
-        
-        ProcessBuilder pb = new ProcessBuilder(command);
-        pb.redirectErrorStream(true); // Combine error and output streams
-        Process process = pb.start();
-    
-        // Capture and process output
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
-            String line;
-            int complexity = 0;
-            while ((line = reader.readLine()) != null) {
-                // Parse the output to extract complexity score
-                complexity += parseComplexityFromToolOutput(line);
-            }
-            return complexity;
+    private int countFiles(String directoryPath) throws IOException {
+        try (Stream<Path> walk = Files.walk(Paths.get(directoryPath))) {
+            return (int) walk.filter(Files::isRegularFile).count();
         }
     }
-    
 
-    private int parseComplexityFromToolOutput(String output) {
-        // Example: Extract cyclomatic complexity from ESLint or PyLint output
-        // You would need to parse the actual output based on the tool you're using
-        return 0; // Placeholder: Replace with actual parsing logic
+    private int calculateFolderDepth(String directoryPath) throws IOException {
+        if (directoryPath == null || directoryPath.isEmpty()) {
+            return 0;
+        }
+
+        Path path = Paths.get(directoryPath);
+        try (Stream<Path> walk = Files.walk(path)) {
+            // Escape special characters in the separator
+            String separatorEscaped = Pattern.quote(File.separator);
+
+            return walk.filter(Files::isDirectory)
+                    .flatMap(p -> {
+                        try {
+                            return Stream.of(p.toRealPath());
+                        } catch (IOException e) {
+                            logger.warn("Error resolving real path: {}", p, e);
+                            return Stream.empty();
+                        }
+                    })
+                    .map(Path::toString)
+                    .map(s -> s.split(separatorEscaped)) // Use the escaped separator
+                    .map(arr -> arr.length)
+                    .max(Integer::compare)
+                    .orElseThrow(() -> new IOException("Unable to determine real path"));
+        }
     }
 
-    /**
-     * Delete the cloned repository after analysis.
-     */
     private void deleteDirectory(File directoryToBeDeleted) {
         File[] allContents = directoryToBeDeleted.listFiles();
         if (allContents != null) {
@@ -194,18 +147,5 @@ public class GitHubService {
             }
         }
         directoryToBeDeleted.delete();
-    }
-
-    private double calculateComplexity(Repository repo, GHRepository ghRepo) {
-        double complexityScore = repo.getWatchers() * 0.5
-                                + repo.getForks() * 0.3
-                                + repo.getFileCount() * 0.2
-                                + repo.getCommitCount() * 0.1
-                                + repo.getContributorCount() * 0.2
-                                + repo.getFileCount() * 0.05
-                                + repo.getLinesOfCode() / 1000.0
-                                + repo.getCyclomaticComplexity() * 0.1;
-
-        return complexityScore;
     }
 }
