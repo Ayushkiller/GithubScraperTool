@@ -2,14 +2,14 @@ package com.example.githubreviewertool.controller;
 
 import com.example.githubreviewertool.model.AnalysisResult;
 import com.example.githubreviewertool.service.GitHubService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.*;
 
 @Controller
+@Slf4j
 public class ReviewController {
 
     @Autowired
@@ -22,8 +22,22 @@ public class ReviewController {
 
     @PostMapping("/analyze")
     public String analyzeProfile(@RequestParam String username, Model model) {
-        AnalysisResult result = gitHubService.analyzeProfile(username);
-        model.addAttribute("result", result);
-        return "result";
+        try {
+            log.info("Analyzing profile for username: {}", username);
+            AnalysisResult result = gitHubService.analyzeProfile(username);
+            model.addAttribute("result", result);
+            log.info("Analysis completed successfully");
+            return "result";
+        } catch (Exception e) {
+            log.error("Error analyzing profile", e);
+            model.addAttribute("error", "An error occurred during analysis");
+            return "error";
+        }
+    }
+
+    @ExceptionHandler(Exception.class)
+    public String handleError(Model model) {
+        model.addAttribute("error", "An unexpected error occurred");
+        return "error";
     }
 }

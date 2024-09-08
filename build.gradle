@@ -16,18 +16,6 @@ repositories {
     mavenCentral()
 }
 
-sourceSets {
-    main {
-        java.srcDirs = ['src/main/java']
-    }
-}
-
-configurations {
-    compileOnly {
-        extendsFrom annotationProcessor
-    }
-}
-
 dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
@@ -39,10 +27,6 @@ dependencies {
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
 }
 
-tasks.named('test') {
+test {
     useJUnitPlatform()
-}
-
-wrapper {
-    gradleVersion = '8.10'
 }
