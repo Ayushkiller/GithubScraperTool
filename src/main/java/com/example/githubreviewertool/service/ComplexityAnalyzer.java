@@ -43,6 +43,9 @@ public class ComplexityAnalyzer {
     
 
     private int getLanguageScore(String language) {
+        if (language == null || language.isEmpty()) {
+            return 0;  // Return 0 if language is null or empty
+        }
         switch (language.toLowerCase()) {
             case "java":
                 return 10;
@@ -54,12 +57,30 @@ public class ComplexityAnalyzer {
                 return 12;  // Consider C++ to be more complex
             case "rust":
                 return 15;  // Rust can be considered highly complex
+            case "go":
+                return 9;
+            case "php":
+                return 6;
+            case "ruby":
+                return 8;
+            case "swift":
+                return 11;
+            case "kotlin":
+                return 10;
+            case "typescript":
+                return 8;
+            case "bash":
+                return 5;
             default:
                 return 5;  // Default weight for unknown languages
         }
     }
 
     private int getFrameworkComplexityScore(List<String> frameworks) {
+        if (frameworks == null || frameworks.isEmpty()) {
+            return 0;  // Return 0 if frameworks is null or empty
+        }
+        
         int score = 0;
         for (String framework : frameworks) {
             switch (framework.toLowerCase()) {
@@ -75,11 +96,11 @@ public class ComplexityAnalyzer {
                 case "angular":
                     score += 9;
                     break;
-                // Add more frameworks with different weights based on complexity
                 default:
                     score += 5;  // Default score for unknown frameworks
             }
         }
         return score;
     }
+    
 }

@@ -1,17 +1,16 @@
 package com.example.githubreviewertool.model;
 
 import java.util.List;
-import java.sql.Date;
 
 public class Repository {
     private String name;
     private String description;
     private String language;
     private int stars;
-    private int forks;
-    private int openIssues;
-    private Date createdAt;
-    private Date updatedAt;
+    private int forksCount;
+    private int openIssuesCount;
+    private java.util.Date createdAt;
+    private java.util.Date updatedAt;
     private int commitCount;
     private int contributorCount;
     private int fileCount;
@@ -20,23 +19,26 @@ public class Repository {
     private int folderDepth;
     private int watchers;
     private List<String> frameworks;
-    public Repository(String name, String description, String language, int stars, int forks, int openIssues,
-    java.sql.Date createdAt, java.sql.Date updatedAt, int commitCount, int contributorCount, int fileCount,
-    int linesOfCode, int folderDepth) {
-this.name = name;
-this.description = description;
-this.language = language;
-this.stars = stars;
-this.forks = forks;
-this.openIssues = openIssues;
-this.createdAt = createdAt;
-this.updatedAt = updatedAt;
-this.commitCount = commitCount;
-this.contributorCount = contributorCount;
-this.fileCount = fileCount;
-this.linesOfCode = linesOfCode;
-this.folderDepth = folderDepth;
-}
+
+    public Repository(String name, String description, String language, int stars, int forksCount, int openIssuesCount,
+            java.util.Date date, java.util.Date date2, int commitCount, int contributorCount, int fileCount,
+            int linesOfCode, int folderDepth, int cyclomaticComplexity, int watchers) {
+        this.name = name;
+        this.description = description;
+        this.language = language;
+        this.stars = stars;
+        this.forksCount = forksCount;
+        this.openIssuesCount = openIssuesCount;
+        this.createdAt = date;
+        this.updatedAt = date2;
+        this.commitCount = commitCount;
+        this.contributorCount = contributorCount;
+        this.fileCount = fileCount;
+        this.linesOfCode = linesOfCode;
+        this.folderDepth = folderDepth;
+        this.cyclomaticComplexity = cyclomaticComplexity;
+        this.watchers = watchers;
+    }
 
     // Getters and Setters for the new fields
     public String getName() {
@@ -51,8 +53,20 @@ this.folderDepth = folderDepth;
         return description;
     }
 
+    public java.util.Date getCreatedAt() {
+        return createdAt;
+    }
+
+    public java.util.Date getUpdatedAt() {
+        return updatedAt;
+    }
+
     public void setDescription(String description) {
         this.description = description;
+    }
+
+    public int getOpenIssueCount() {
+        return openIssuesCount;
     }
 
     public String getLanguage() {
@@ -71,12 +85,12 @@ this.folderDepth = folderDepth;
         this.stars = stars;
     }
 
-    public int getForks() {
-        return forks;
+    public int getForksCount() {
+        return forksCount;
     }
 
-    public void setForks(int forks) {
-        this.forks = forks;
+    public void setForks(int forksCount) {
+        this.forksCount = forksCount;
     }
 
     public int getWatchers() {
